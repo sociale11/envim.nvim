@@ -8,7 +8,7 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
-  'sociale/envim.nvim',
+  'sociale11/envim.nvim',
   
   config = function()
     require('envim').setup()
