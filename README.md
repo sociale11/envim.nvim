@@ -51,7 +51,7 @@ require('envim').setup({
 ```
 
 ### Screenshots
-![Envim Interface](~/Pictures/envim.png)
+<img width="1308" height="464" alt="envim" src="https://github.com/user-attachments/assets/f4ff6fc5-04cc-4427-a7f2-27a12bf73544" />
 
 ## License
 
