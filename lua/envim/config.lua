@@ -2,8 +2,8 @@ local C = {}
 
 C.defaults = {
 	env_file = ".env",
-	window_width = 40,
-	window_height = 20,
+	window_width = 150,
+	window_height = 100,
 	dir = ".",
 }
 
