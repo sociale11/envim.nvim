@@ -2,7 +2,8 @@
 
 A Neovim plugin for managing `.env` files.
 
-![envim](envim.gif)
+![envim](https://github.com/user-attachments/assets/11c092f9-b24c-439a-b213-d69dd6f769ed)
+
 
 ## Installation
 
