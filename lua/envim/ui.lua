@@ -3,7 +3,8 @@ local M = {}
 --- Displays the environment variable manager popup UI
 --- @param env_vars table Array of environment variables
 --- @param filepath string Path to the .env file
-function M.show_popup(env_vars, filepath)
+--- @param env_files table Array of available .env files
+function M.show_popup(env_vars, filepath, env_files)
 	local state = {
 		all_env_vars = env_vars,
 		filtered_vars = env_vars,
@@ -303,6 +304,30 @@ function M.show_popup(env_vars, filepath)
 		end)
 	end
 
+	--- Switches to a different .env file
+	local function switch_env_file()
+		if not env_files or #env_files <= 1 then
+			vim.notify("No other .env files available", vim.log.levels.WARN)
+			return
+		end
+
+		local choices = {}
+		for _, file in ipairs(env_files) do
+			table.insert(choices, file.name)
+		end
+
+		vim.ui.select(choices, {
+			prompt = "Select .env file:",
+		}, function(choice, idx)
+			if choice and idx then
+				close_popup()
+				local envim = require("envim")
+				envim.selected_env_file = env_files[idx].path
+				envim.open()
+			end
+		end)
+	end
+
 	local width = 150
 	local max_height = 100
 	local total_height = math.min(#env_vars + 10, max_height)
@@ -445,7 +470,7 @@ function M.show_popup(env_vars, filepath)
 	vim.api.nvim_set_option_value("signcolumn", "no", { win = input_win })
 
 	local status_buf = vim.api.nvim_create_buf(false, true)
-	local status_content = "[Space] Toggle  [a] Add  [d] Delete  [w] Save  [/] Search  [q] Quit"
+	local status_content = "[Space] Toggle  [a] Add  [d] Delete  [w] Save  [e] Switch File  [/] Search  [q] Quit"
 	local padding = math.floor((width - #status_content) / 2)
 	local status_text = string.rep(" ", padding) .. status_content
 	vim.api.nvim_buf_set_lines(status_buf, 0, -1, false, { status_text })
@@ -559,6 +584,8 @@ function M.show_popup(env_vars, filepath)
 	vim.keymap.set("n", "a", add_variable, { buffer = buf, nowait = true })
 
 	vim.keymap.set("n", "d", delete_variable, { buffer = buf, nowait = true })
+
+	vim.keymap.set("n", "e", switch_env_file, { buffer = buf, nowait = true })
 
 	vim.keymap.set("n", "<Tab>", function()
 		vim.api.nvim_set_current_win(input_win)
