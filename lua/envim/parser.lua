@@ -62,7 +62,9 @@ function M.save_env_file(filepath, env_vars)
 	for _, env in ipairs(env_vars) do
 		-- Write label comment if present
 		if env.label then
-			file:write("# " .. env.label .. "\n")
+			local label_text = "# " .. env.label
+			local padding = string.rep("#", 100 - #label_text)
+			file:write(label_text .. padding .. "\n")
 		end
 
 		-- Write the env var line
