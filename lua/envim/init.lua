@@ -2,10 +2,8 @@ local M = {}
 
 M.selected_env_file = nil
 
---- Initializes the plugin with default configuration
-function M.setup()
-	print("Envim loaded")
-end
+--- Initializes the plugin (currently no configuration needed)
+function M.setup() end
 
 --- Finds all available .env files in the current directory
 --- @return table filepaths Array of found .env file paths

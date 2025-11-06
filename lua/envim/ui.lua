@@ -1,5 +1,28 @@
 local M = {}
 
+-- Configuration constants
+local POPUP_WIDTH = 150
+local POPUP_MAX_HEIGHT = 100
+local POPUP_HEIGHT_OFFSET = 10
+local MAIN_HEIGHT_ADJUSTMENT = 8
+local ROW_OFFSET = 3
+local STATUS_WIN_MARGIN = 2
+
+-- Namespace IDs (cached to avoid repeated creation)
+local ns_indicators = vim.api.nvim_create_namespace("envim_indicators")
+local ns_group_highlight = vim.api.nvim_create_namespace("envim_group_highlight")
+local ns_placeholder = vim.api.nvim_create_namespace("envim_placeholder")
+local ns_status = vim.api.nvim_create_namespace("envim_status")
+
+--- Sets multiple window options at once
+--- @param win number Window handle
+--- @param opts table Table of option_name = value pairs
+local function set_win_opts(win, opts)
+	for opt, val in pairs(opts) do
+		vim.api.nvim_set_option_value(opt, val, { win = win })
+	end
+end
+
 --- Displays the environment variable manager popup UI
 --- @param env_vars table Array of environment variables
 --- @param filepath string Path to the .env file
@@ -23,6 +46,7 @@ function M.show_popup(env_vars, filepath, env_files)
 
 	--- Renders the environment variable list to the buffer
 	local function render_list()
+		local parser = require("envim.parser")
 		vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
 
 		local lines = {}
@@ -38,13 +62,7 @@ function M.show_popup(env_vars, filepath, env_files)
 				table.insert(env_lines, #lines)
 			end
 
-			local line
-			if env.commented then
-				line = string.format("# %s=%s", env.key, env.value)
-			else
-				line = string.format("%s=%s", env.key, env.value)
-			end
-			table.insert(lines, line)
+			table.insert(lines, parser.format_env_line(env))
 			state.line_to_env_map[#lines] = env_idx
 			table.insert(env_lines, #lines)
 
@@ -57,8 +75,7 @@ function M.show_popup(env_vars, filepath, env_files)
 
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-		local ns_id = vim.api.nvim_create_namespace("envim_indicators")
-		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+		vim.api.nvim_buf_clear_namespace(buf, ns_indicators, 0, -1)
 
 		local line_idx = 0
 		for env_idx, env in ipairs(state.filtered_vars) do
@@ -67,7 +84,7 @@ function M.show_popup(env_vars, filepath, env_files)
 			end
 
 			if not env.commented then
-				vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, 0, {
+				vim.api.nvim_buf_set_extmark(buf, ns_indicators, line_idx, 0, {
 					virt_text = { { "● ", "Function" } },
 					virt_text_pos = "inline",
 				})
@@ -97,8 +114,7 @@ function M.show_popup(env_vars, filepath, env_files)
 
 	--- Highlights all lines belonging to the current environment variable group
 	local function highlight_current_group()
-		local ns_id = vim.api.nvim_create_namespace("envim_group_highlight")
-		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+		vim.api.nvim_buf_clear_namespace(buf, ns_group_highlight, 0, -1)
 
 		local win = vim.api.nvim_get_current_win()
 		if not vim.api.nvim_win_is_valid(win) then
@@ -112,7 +128,7 @@ function M.show_popup(env_vars, filepath, env_files)
 			local group_lines = state.env_to_lines_map[current_env_idx]
 			if group_lines then
 				for _, line_num in ipairs(group_lines) do
-					vim.api.nvim_buf_add_highlight(buf, ns_id, "CursorLine", line_num - 1, 0, -1)
+					vim.api.nvim_buf_add_highlight(buf, ns_group_highlight, "CursorLine", line_num - 1, 0, -1)
 				end
 			end
 		end
@@ -304,15 +320,13 @@ function M.show_popup(env_vars, filepath, env_files)
 		end)
 	end
 
-	local width = 150
-	local max_height = 100
-	local total_height = math.min(#env_vars + 10, max_height)
+	local total_height = math.min(#env_vars + POPUP_HEIGHT_OFFSET, POPUP_MAX_HEIGHT)
 	local row = math.floor((vim.o.lines - total_height) / 2)
-	local col = math.floor((vim.o.columns - width) / 2)
+	local col = math.floor((vim.o.columns - POPUP_WIDTH) / 2)
 
 	local input_opts = {
 		relative = "editor",
-		width = width,
+		width = POPUP_WIDTH,
 		height = 1,
 		row = row,
 		col = col,
@@ -320,12 +334,12 @@ function M.show_popup(env_vars, filepath, env_files)
 		border = "single",
 	}
 
-	local main_height = math.max(10, total_height - 8)
+	local main_height = math.max(10, total_height - MAIN_HEIGHT_ADJUSTMENT)
 	local main_opts = {
 		relative = "editor",
-		width = width,
+		width = POPUP_WIDTH,
 		height = main_height,
-		row = row + 3,
+		row = row + ROW_OFFSET,
 		col = col,
 		style = "minimal",
 		border = "single",
@@ -362,14 +376,13 @@ function M.show_popup(env_vars, filepath, env_files)
 	vim.keymap.set("i", "<C-x><C-f>", "<Nop>", { buffer = input_buf, nowait = true })
 
 	local placeholder_text = "Search environment variables..."
-	local placeholder_ns = vim.api.nvim_create_namespace("envim_placeholder")
 
 	--- Shows placeholder text in the search input
 	local function show_placeholder()
-		vim.api.nvim_buf_clear_namespace(input_buf, placeholder_ns, 0, -1)
+		vim.api.nvim_buf_clear_namespace(input_buf, ns_placeholder, 0, -1)
 		local line = vim.api.nvim_buf_get_lines(input_buf, 0, 1, false)[1] or ""
 		if line == "" then
-			vim.api.nvim_buf_set_extmark(input_buf, placeholder_ns, 0, 0, {
+			vim.api.nvim_buf_set_extmark(input_buf, ns_placeholder, 0, 0, {
 				virt_text = { { placeholder_text, "Comment" } },
 				virt_text_pos = "overlay",
 			})
@@ -378,7 +391,7 @@ function M.show_popup(env_vars, filepath, env_files)
 
 	--- Clears placeholder text from the search input
 	local function clear_placeholder()
-		vim.api.nvim_buf_clear_namespace(input_buf, placeholder_ns, 0, -1)
+		vim.api.nvim_buf_clear_namespace(input_buf, ns_placeholder, 0, -1)
 	end
 
 	vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { "" })
@@ -434,29 +447,34 @@ function M.show_popup(env_vars, filepath, env_files)
 		highlight_current_group()
 	end, { buffer = input_buf, nowait = true })
 
-	vim.api.nvim_set_option_value("cursorline", false, { win = main_win })
-	vim.api.nvim_set_option_value("number", false, { win = main_win })
-	vim.api.nvim_set_option_value("relativenumber", false, { win = main_win })
-	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-	vim.api.nvim_set_option_value("wrap", false, { win = main_win })
-	vim.api.nvim_set_option_value("signcolumn", "no", { win = main_win })
+	set_win_opts(main_win, {
+		cursorline = false,
+		number = false,
+		relativenumber = false,
+		wrap = false,
+		signcolumn = "no",
+	})
 
-	vim.api.nvim_set_option_value("number", false, { win = input_win })
-	vim.api.nvim_set_option_value("relativenumber", false, { win = input_win })
-	vim.api.nvim_set_option_value("signcolumn", "no", { win = input_win })
+	set_win_opts(input_win, {
+		number = false,
+		relativenumber = false,
+		signcolumn = "no",
+	})
+
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
 	local status_buf = vim.api.nvim_create_buf(false, true)
 	local status_content = "[Space] Toggle  [a] Add  [d] Delete  [w] Save  [e] Switch File  [/] Search  [q] Quit"
-	local padding = math.floor((width - #status_content) / 2)
+	local padding = math.floor((POPUP_WIDTH - #status_content) / 2)
 	local status_text = string.rep(" ", padding) .. status_content
 	vim.api.nvim_buf_set_lines(status_buf, 0, -1, false, { status_text })
 	vim.api.nvim_set_option_value("modifiable", false, { buf = status_buf })
 
 	local status_win = vim.api.nvim_open_win(status_buf, false, {
 		relative = "editor",
-		width = width,
+		width = POPUP_WIDTH,
 		height = 1,
-		row = row + 3 + main_height + 2,
+		row = row + ROW_OFFSET + main_height + STATUS_WIN_MARGIN,
 		col = col,
 		style = "minimal",
 		border = "single",
@@ -465,8 +483,7 @@ function M.show_popup(env_vars, filepath, env_files)
 
 	vim.api.nvim_set_option_value("winhl", "FloatBorder:WinSeparator", { win = status_win })
 
-	local status_ns = vim.api.nvim_create_namespace("envim_status")
-	vim.api.nvim_buf_add_highlight(status_buf, status_ns, "Comment", 0, 0, -1)
+	vim.api.nvim_buf_add_highlight(status_buf, ns_status, "Comment", 0, 0, -1)
 
 	--- Closes all popup windows
 	local function close_popup()
@@ -590,15 +607,13 @@ function M.show_popup(env_vars, filepath, env_files)
 	vim.keymap.set("n", "<Tab>", function()
 		vim.api.nvim_set_current_win(input_win)
 		vim.cmd("startinsert")
-		local ns_id = vim.api.nvim_create_namespace("envim_group_highlight")
-		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+		vim.api.nvim_buf_clear_namespace(buf, ns_group_highlight, 0, -1)
 	end, { buffer = buf, nowait = true })
 
 	vim.keymap.set("n", "/", function()
 		vim.api.nvim_set_current_win(input_win)
 		vim.cmd("startinsert")
-		local ns_id = vim.api.nvim_create_namespace("envim_group_highlight")
-		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+		vim.api.nvim_buf_clear_namespace(buf, ns_group_highlight, 0, -1)
 	end, { buffer = buf, nowait = true })
 
 	vim.api.nvim_create_autocmd("CursorMoved", {
@@ -618,8 +633,7 @@ function M.show_popup(env_vars, filepath, env_files)
 	vim.api.nvim_create_autocmd("WinLeave", {
 		buffer = buf,
 		callback = function()
-			local ns_id = vim.api.nvim_create_namespace("envim_group_highlight")
-			vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+			vim.api.nvim_buf_clear_namespace(buf, ns_group_highlight, 0, -1)
 		end,
 	})
 

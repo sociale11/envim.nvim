@@ -1,5 +1,16 @@
 local M = {}
 
+--- Formats an environment variable into a .env file line
+--- @param env table Environment variable with key, value, and commented fields
+--- @return string line The formatted line
+function M.format_env_line(env)
+	if env.commented then
+		return string.format("# %s=%s", env.key, env.value)
+	else
+		return string.format("%s=%s", env.key, env.value)
+	end
+end
+
 --- Parses an environment file and extracts variables with their metadata
 --- @param filepath string The path to the .env file
 --- @return table|nil env_vars Array of parsed environment variables
@@ -69,13 +80,7 @@ function M.save_env_file(filepath, env_vars)
 			file:write(label_text .. "\n")
 		end
 
-		local line
-		if env.commented then
-			line = string.format("# %s=%s", env.key, env.value)
-		else
-			line = string.format("%s=%s", env.key, env.value)
-		end
-		file:write(line .. "\n")
+		file:write(M.format_env_line(env) .. "\n")
 	end
 
 	file:close()
