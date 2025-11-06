@@ -2,9 +2,8 @@ local M = {}
 
 --- Displays the environment variable manager popup UI
 --- @param env_vars table Array of environment variables
---- @param config table Configuration options
 --- @param filepath string Path to the .env file
-function M.show_popup(env_vars, config, filepath)
+function M.show_popup(env_vars, filepath)
 	local state = {
 		all_env_vars = env_vars,
 		filtered_vars = env_vars,
@@ -304,8 +303,8 @@ function M.show_popup(env_vars, config, filepath)
 		end)
 	end
 
-	local width = config.window_width or 80
-	local max_height = config.window_height or 20
+	local width = 150
+	local max_height = 100
 	local total_height = math.min(#env_vars + 10, max_height)
 	local row = math.floor((vim.o.lines - total_height) / 2)
 	local col = math.floor((vim.o.columns - width) / 2)

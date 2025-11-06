@@ -1,12 +1,7 @@
 local C = {}
 
-C.defaults = {
-	env_file = ".env",
-	window_width = 150,
-	window_height = 100,
-	dir = ".",
-}
+C.defaults = {}
 
-C.options = vim.deepcopy(C.opts)
+C.options = vim.deepcopy(C.defaults)
 
 return C

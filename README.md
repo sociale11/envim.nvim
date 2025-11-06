@@ -42,15 +42,12 @@ Run `:Envim` to open the interface.
 
 ## Configuration
 
-Default settings:
-
-```lua
-require('envim').setup({
-  env_file = '.env',        -- File to read
-  window_width = 150,       -- Popup width
-  window_height = 100,      -- Popup height
-})
-```
+The plugin automatically scans for `.env` files in this order:
+1. `.env`
+2. `.env.local`
+3. `.env.development`
+4. `.env.production`
+5. `.env.test`
 
 ### Screenshots
 <img width="1308" height="464" alt="envim" src="https://github.com/user-attachments/assets/f4ff6fc5-04cc-4427-a7f2-27a12bf73544" />

@@ -2,19 +2,38 @@ local M = {}
 
 --- Initializes the plugin with default configuration
 function M.setup()
-	local config = require("envim.config")
-	config.options = vim.tbl_extend("force", config.defaults, config.options or {})
 	print("Envim loaded")
+end
+
+--- Finds the first available .env file in the current directory
+--- @return string|nil filepath Path to the .env file or nil if not found
+local function find_env_file()
+	local cwd = vim.fn.getcwd()
+	local candidates = { ".env", ".env.local", ".env.development", ".env.production", ".env.test" }
+
+	for _, filename in ipairs(candidates) do
+		local filepath = cwd .. "/" .. filename
+		local file = io.open(filepath, "r")
+		if file then
+			file:close()
+			return filepath
+		end
+	end
+
+	return nil
 end
 
 --- Opens the environment variable manager UI
 function M.open()
-	local config = require("envim.config")
 	local parser = require("envim.parser")
 	local ui = require("envim.ui")
 
-	local cwd = vim.fn.getcwd()
-	local env_file_path = cwd .. "/" .. config.options.env_file
+	local env_file_path = find_env_file()
+
+	if not env_file_path then
+		vim.notify("No .env file found in current directory", vim.log.levels.ERROR)
+		return
+	end
 
 	local env_vars, err = parser.parse_env_file(env_file_path)
 
@@ -28,7 +47,7 @@ function M.open()
 		return
 	end
 
-	ui.show_popup(env_vars, config.options, env_file_path)
+	ui.show_popup(env_vars, env_file_path)
 end
 
 return M
