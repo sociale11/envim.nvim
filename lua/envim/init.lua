@@ -47,11 +47,6 @@ function M.open(force_select)
 			return
 		end
 
-		if #env_vars == 0 then
-			vim.notify("No environment variables found", vim.log.levels.WARN)
-			return
-		end
-
 		M.selected_env_file = filepath
 		ui.show_popup(env_vars, filepath, env_files)
 	end
