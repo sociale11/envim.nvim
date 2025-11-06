@@ -259,18 +259,21 @@ function M.show_popup(env_vars, config, filepath)
 					-- Add to the end of all_env_vars
 					table.insert(state.all_env_vars, new_var)
 
-					-- Update filtered vars if it matches current search
-					if state.search_query == "" or key:lower():find(state.search_query:lower(), 1, true) then
-						table.insert(state.filtered_vars, new_var)
-					end
+					-- Re-apply the current search filter to update filtered_vars
+					update_search(state.search_query)
 
-					-- Re-render and notify
-					render_list()
+					-- Notify
 					vim.notify(string.format("Added variable: %s", key), vim.log.levels.INFO)
 
-					-- Move cursor to the newly added variable
-					local new_idx = #state.filtered_vars
-					if new_idx > 0 then
+					-- Move cursor to the newly added variable (find its index in filtered_vars)
+					local new_idx = nil
+					for i, env in ipairs(state.filtered_vars) do
+						if env == new_var then
+							new_idx = i
+							break
+						end
+					end
+					if new_idx and new_idx > 0 then
 						local new_lines = state.env_to_lines_map[new_idx]
 						if new_lines and #new_lines > 0 and state.main_win then
 							vim.api.nvim_set_current_win(state.main_win)
