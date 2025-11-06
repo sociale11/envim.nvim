@@ -185,14 +185,52 @@ function M.show_popup(env_vars, config, filepath)
 
 	-- Function to add a new environment variable
 	local function add_variable()
+		-- Create a custom input handler that capitalizes on the fly
+		local function capitalized_input(prompt, callback)
+			-- Create an autocmd to capitalize input in real-time
+			local autocmd_id = vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
+				pattern = "*",
+				callback = function(args)
+					-- Only apply to the input buffer
+					local buf = args.buf
+					local buftype = vim.api.nvim_get_option_value("buftype", { buf = buf })
+
+					-- Check if this is an input prompt buffer
+					if buftype == "prompt" or vim.bo[buf].filetype == "snacks_input" then
+						local line = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ""
+						local capitalized = line:upper()
+
+						if line ~= capitalized and line ~= "" then
+							-- Get cursor position
+							local ok, cursor_pos = pcall(vim.api.nvim_win_get_cursor, 0)
+							if ok then
+								-- Update buffer with capitalized text
+								vim.api.nvim_buf_set_lines(buf, 0, 1, false, { capitalized })
+								-- Restore cursor position
+								pcall(vim.api.nvim_win_set_cursor, 0, cursor_pos)
+							end
+						end
+					end
+				end,
+			})
+
+			vim.ui.input({ prompt = prompt }, function(input)
+				-- Clean up the autocmd
+				vim.api.nvim_del_autocmd(autocmd_id)
+
+				if input then
+					callback(input:upper())
+				else
+					callback(input)
+				end
+			end)
+		end
+
 		-- Prompt for key
-		vim.ui.input({ prompt = "Variable name: " }, function(key)
+		capitalized_input("Variable name: ", function(key)
 			if not key or key == "" then
 				return
 			end
-
-			-- Capitalize the key
-			key = key:upper()
 
 			-- Prompt for value
 			vim.ui.input({ prompt = "Variable value: " }, function(value)
