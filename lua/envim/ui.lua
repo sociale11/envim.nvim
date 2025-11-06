@@ -181,6 +181,103 @@ function M.show_popup(env_vars, config, filepath)
 		end
 	end
 
+	-- Function to add a new environment variable
+	local function add_variable()
+		-- Prompt for key
+		vim.ui.input({ prompt = "Variable name: " }, function(key)
+			if not key or key == "" then
+				return
+			end
+
+			-- Prompt for value
+			vim.ui.input({ prompt = "Variable value: " }, function(value)
+				if not value then
+					return
+				end
+
+				-- Optionally prompt for label/comment
+				vim.ui.input({ prompt = "Label (optional): " }, function(label)
+					local new_var = {
+						key = key,
+						value = value,
+						commented = false,
+						label = (label and label ~= "") and label or nil,
+					}
+
+					-- Add to the end of all_env_vars
+					table.insert(state.all_env_vars, new_var)
+
+					-- Update filtered vars if it matches current search
+					if state.search_query == "" or key:lower():find(state.search_query:lower(), 1, true) then
+						table.insert(state.filtered_vars, new_var)
+					end
+
+					-- Re-render and notify
+					render_list()
+					vim.notify(string.format("Added variable: %s", key), vim.log.levels.INFO)
+
+					-- Move cursor to the newly added variable
+					local new_idx = #state.filtered_vars
+					if new_idx > 0 then
+						local new_lines = state.env_to_lines_map[new_idx]
+						if new_lines and #new_lines > 0 then
+							vim.api.nvim_set_current_win(main_win)
+							vim.api.nvim_win_set_cursor(main_win, { new_lines[1], 0 })
+							highlight_current_group()
+						end
+					end
+				end)
+			end)
+		end)
+	end
+
+	-- Function to delete current environment variable
+	local function delete_variable()
+		local win = vim.api.nvim_get_current_win()
+		local cursor = vim.api.nvim_win_get_cursor(win)
+		local env_idx = state.line_to_env_map[cursor[1]]
+
+		if not env_idx then
+			return
+		end
+
+		local env = state.filtered_vars[env_idx]
+
+		-- Confirm deletion
+		vim.ui.select({ "Yes", "No" }, {
+			prompt = string.format("Delete variable '%s'?", env.key),
+		}, function(choice)
+			if choice ~= "Yes" then
+				return
+			end
+
+			-- Find and remove from all_env_vars
+			for i, e in ipairs(state.all_env_vars) do
+				if e.key == env.key and e.value == env.value then
+					table.remove(state.all_env_vars, i)
+					break
+				end
+			end
+
+			-- Remove from filtered_vars
+			table.remove(state.filtered_vars, env_idx)
+
+			-- Re-render
+			render_list()
+			vim.notify(string.format("Deleted variable: %s", env.key), vim.log.levels.INFO)
+
+			-- Move cursor to a valid position
+			if #state.filtered_vars > 0 then
+				local new_idx = math.min(env_idx, #state.filtered_vars)
+				local new_lines = state.env_to_lines_map[new_idx]
+				if new_lines and #new_lines > 0 then
+					vim.api.nvim_win_set_cursor(win, { new_lines[1], 0 })
+					highlight_current_group()
+				end
+			end
+		end)
+	end
+
 	-- Calculate dimensions
 	local width = config.window_width or 80
 	local max_height = config.window_height or 20
@@ -332,7 +429,7 @@ function M.show_popup(env_vars, config, filepath)
 
 	-- Add status line at the bottom showing keybindings
 	local status_buf = vim.api.nvim_create_buf(false, true)
-	local status_content = "[Space] Toggle  [w] Save  [/] Search  [q] Quit"
+	local status_content = "[Space] Toggle  [a] Add  [d] Delete  [w] Save  [/] Search  [q] Quit"
 	-- Center the status text
 	local padding = math.floor((width - #status_content) / 2)
 	local status_text = string.rep(" ", padding) .. status_content
@@ -453,6 +550,12 @@ function M.show_popup(env_vars, config, filepath)
 
 	-- Save changes with 'w'
 	vim.keymap.set("n", "w", save_changes, { buffer = buf, nowait = true })
+
+	-- Add new variable with 'a'
+	vim.keymap.set("n", "a", add_variable, { buffer = buf, nowait = true })
+
+	-- Delete variable with 'd'
+	vim.keymap.set("n", "d", delete_variable, { buffer = buf, nowait = true })
 
 	-- Switch back to search with Tab or /
 	vim.keymap.set("n", "<Tab>", function()
