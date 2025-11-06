@@ -9,6 +9,8 @@ function M.show_popup(env_vars, config, filepath)
 		filepath = filepath,
 		line_to_env_map = {}, -- Maps display line numbers to env var indices
 		env_to_lines_map = {}, -- Maps env var index to its lines (label + env line)
+		main_win = nil, -- Will be set after window creation
+		input_win = nil, -- Will be set after window creation
 	}
 
 	-- Create main buffer for env variables
@@ -189,6 +191,9 @@ function M.show_popup(env_vars, config, filepath)
 				return
 			end
 
+			-- Capitalize the key
+			key = key:upper()
+
 			-- Prompt for value
 			vim.ui.input({ prompt = "Variable value: " }, function(value)
 				if not value then
@@ -197,10 +202,19 @@ function M.show_popup(env_vars, config, filepath)
 
 				-- Optionally prompt for label/comment
 				vim.ui.input({ prompt = "Label (optional): " }, function(label)
+					-- Check if a variable with the same key already exists
+					local key_exists = false
+					for _, env in ipairs(state.all_env_vars) do
+						if env.key == key then
+							key_exists = true
+							break
+						end
+					end
+
 					local new_var = {
 						key = key,
 						value = value,
-						commented = false,
+						commented = key_exists, -- Comment out if key already exists
 						label = (label and label ~= "") and label or nil,
 					}
 
@@ -220,9 +234,9 @@ function M.show_popup(env_vars, config, filepath)
 					local new_idx = #state.filtered_vars
 					if new_idx > 0 then
 						local new_lines = state.env_to_lines_map[new_idx]
-						if new_lines and #new_lines > 0 then
-							vim.api.nvim_set_current_win(main_win)
-							vim.api.nvim_win_set_cursor(main_win, { new_lines[1], 0 })
+						if new_lines and #new_lines > 0 and state.main_win then
+							vim.api.nvim_set_current_win(state.main_win)
+							vim.api.nvim_win_set_cursor(state.main_win, { new_lines[1], 0 })
 							highlight_current_group()
 						end
 					end
@@ -312,6 +326,10 @@ function M.show_popup(env_vars, config, filepath)
 	local input_win = vim.api.nvim_open_win(input_buf, true, input_opts)
 	local main_win = vim.api.nvim_open_win(buf, false, main_opts)
 
+	-- Store windows in state for access by functions
+	state.input_win = input_win
+	state.main_win = main_win
+
 	-- Set border highlight to use WinSeparator for thin borders
 	vim.api.nvim_set_option_value("winhl", "FloatBorder:WinSeparator", { win = input_win })
 	vim.api.nvim_set_option_value("winhl", "FloatBorder:WinSeparator", { win = main_win })
@@ -378,6 +396,19 @@ function M.show_popup(env_vars, config, filepath)
 		buffer = input_buf,
 		callback = function()
 			local line = vim.api.nvim_buf_get_lines(input_buf, 0, 1, false)[1] or ""
+
+			-- Capitalize the search input
+			local capitalized = line:upper()
+			if line ~= capitalized and line ~= "" then
+				-- Get cursor position before modification
+				local cursor_pos = vim.api.nvim_win_get_cursor(vim.api.nvim_get_current_win())
+				-- Update the buffer with capitalized text
+				vim.api.nvim_buf_set_lines(input_buf, 0, 1, false, { capitalized })
+				-- Restore cursor position
+				vim.api.nvim_win_set_cursor(vim.api.nvim_get_current_win(), cursor_pos)
+				line = capitalized
+			end
+
 			if line == "" then
 				show_placeholder()
 			else
