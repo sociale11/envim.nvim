@@ -304,30 +304,6 @@ function M.show_popup(env_vars, filepath, env_files)
 		end)
 	end
 
-	--- Switches to a different .env file
-	local function switch_env_file()
-		if not env_files or #env_files <= 1 then
-			vim.notify("No other .env files available", vim.log.levels.WARN)
-			return
-		end
-
-		local choices = {}
-		for _, file in ipairs(env_files) do
-			table.insert(choices, file.name)
-		end
-
-		vim.ui.select(choices, {
-			prompt = "Select .env file:",
-		}, function(choice, idx)
-			if choice and idx then
-				close_popup()
-				local envim = require("envim")
-				envim.selected_env_file = env_files[idx].path
-				envim.open()
-			end
-		end)
-	end
-
 	local width = 150
 	local max_height = 100
 	local total_height = math.min(#env_vars + 10, max_height)
@@ -497,6 +473,30 @@ function M.show_popup(env_vars, filepath, env_files)
 		vim.api.nvim_win_close(input_win, true)
 		vim.api.nvim_win_close(main_win, true)
 		vim.api.nvim_win_close(status_win, true)
+	end
+
+	--- Switches to a different .env file
+	local function switch_env_file()
+		if not env_files or #env_files <= 1 then
+			vim.notify("No other .env files available", vim.log.levels.WARN)
+			return
+		end
+
+		local choices = {}
+		for _, file in ipairs(env_files) do
+			table.insert(choices, file.name)
+		end
+
+		vim.ui.select(choices, {
+			prompt = "Select .env file:",
+		}, function(choice, idx)
+			if choice and idx then
+				close_popup()
+				local envim = require("envim")
+				envim.selected_env_file = env_files[idx].path
+				envim.open()
+			end
+		end)
 	end
 
 	vim.keymap.set("n", "q", close_popup, { buffer = input_buf, nowait = true })
