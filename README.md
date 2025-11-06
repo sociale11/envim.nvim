@@ -2,6 +2,8 @@
 
 A Neovim plugin for managing `.env` files.
 
+![envim](envim.gif)
+
 ## Installation
 
 Using [lazy.nvim](https://github.com/folke/lazy.nvim):
@@ -51,9 +53,6 @@ The plugin automatically scans for `.env` files in this order:
 5. `.env.test`
 
 When multiple files are found, you'll be prompted to choose one. Your selection is remembered for the current Neovim session. Use `e` to switch between files.
-
-### Screenshots
-<img width="1308" height="464" alt="envim" src="https://github.com/user-attachments/assets/f4ff6fc5-04cc-4427-a7f2-27a12bf73544" />
 
 ## License
 
