@@ -1,5 +1,9 @@
 local M = {}
 
+--- Parses an environment file and extracts variables with their metadata
+--- @param filepath string The path to the .env file
+--- @return table|nil env_vars Array of parsed environment variables
+--- @return string|nil error Error message if parsing failed
 function M.parse_env_file(filepath)
 	local file = io.open(filepath, "r")
 	if not file then
@@ -10,22 +14,18 @@ function M.parse_env_file(filepath)
 	local last_comment_label = nil
 
 	for line in file:lines() do
-		-- Skip empty lines
 		if line:match("^%s*$") then
-			last_comment_label = nil -- Clear label on empty line
+			last_comment_label = nil
 			goto continue
 		end
 
-		-- Check if line is commented
 		local is_commented = line:match("^%s*#") ~= nil
 
-		-- For commented lines, try to parse after removing #
 		local parse_line = line
 		if is_commented then
 			parse_line = line:gsub("^%s*#%s*", "")
 		end
 
-		-- Parse KEY=VALUE
 		local key, value = parse_line:match("^([^=]+)=(.*)$")
 
 		if key and value then
@@ -38,11 +38,10 @@ function M.parse_env_file(filepath)
 				key = key,
 				value = value,
 				commented = is_commented,
-				label = last_comment_label, -- Add label from previous comment
+				label = last_comment_label,
 			})
-			last_comment_label = nil -- Clear after using
+			last_comment_label = nil
 		elseif is_commented then
-			-- This is a standalone comment line, store as potential label
 			last_comment_label = parse_line:match("^%s*(.-)%s*$")
 		end
 
@@ -53,6 +52,11 @@ function M.parse_env_file(filepath)
 	return env_vars
 end
 
+--- Saves environment variables to a file
+--- @param filepath string The path to the .env file
+--- @param env_vars table Array of environment variables to save
+--- @return boolean success True if save succeeded
+--- @return string|nil error Error message if save failed
 function M.save_env_file(filepath, env_vars)
 	local file = io.open(filepath, "w")
 	if not file then
@@ -60,14 +64,11 @@ function M.save_env_file(filepath, env_vars)
 	end
 
 	for _, env in ipairs(env_vars) do
-		-- Write label comment if present
 		if env.label then
 			local label_text = "# " .. env.label
-			local padding = string.rep("#", 100 - #label_text)
-			file:write(label_text .. padding .. "\n")
+			file:write(label_text .. "\n")
 		end
 
-		-- Write the env var line
 		local line
 		if env.commented then
 			line = string.format("# %s=%s", env.key, env.value)

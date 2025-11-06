@@ -1,11 +1,13 @@
 local M = {}
 
+--- Initializes the plugin with default configuration
 function M.setup()
 	local config = require("envim.config")
 	config.options = vim.tbl_extend("force", config.defaults, config.options or {})
 	print("Envim loaded")
 end
 
+--- Opens the environment variable manager UI
 function M.open()
 	local config = require("envim.config")
 	local parser = require("envim.parser")
