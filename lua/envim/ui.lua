@@ -320,6 +320,58 @@ function M.show_popup(env_vars, filepath, env_files)
 		end)
 	end
 
+	local function edit_variable()
+		local win = vim.api.nvim_get_current_win()
+		local cursor = vim.api.nvim_win_get_cursor(win)
+		local env_idx = state.line_to_env_map[cursor[1]]
+
+		if not env_idx then
+			return
+		end
+
+		local env = state.filtered_vars[env_idx]
+
+		vim.ui.input({ prompt = "Variable value: ", default = env.value }, function(value)
+			if not value then
+				return
+			end
+
+			vim.ui.input({ prompt = "Label (optional): ", default = env.label or "" }, function(label)
+				for i, e in ipairs(state.all_env_vars) do
+					if e == env then
+						state.all_env_vars[i] = {
+							key = env.key,
+							value = value,
+							commented = env.commented,
+							label = (label and label ~= "") and label or nil,
+						}
+						break
+					end
+				end
+
+				update_search(state.search_query)
+
+				vim.notify(string.format("Edited variable: %s", env.key), vim.log.levels.INFO)
+
+				local new_idx = nil
+				for i, e in ipairs(state.filtered_vars) do
+					if e.key == env.key then
+						new_idx = i
+						break
+					end
+				end
+				if new_idx and new_idx > 0 then
+					local new_lines = state.env_to_lines_map[new_idx]
+					if new_lines and #new_lines > 0 and state.main_win then
+						vim.api.nvim_set_current_win(state.main_win)
+						vim.api.nvim_win_set_cursor(state.main_win, { new_lines[1], 0 })
+						highlight_current_group()
+					end
+				end
+			end)
+		end)
+	end
+
 	local total_height = math.min(#env_vars + POPUP_HEIGHT_OFFSET, POPUP_MAX_HEIGHT)
 	local row = math.floor((vim.o.lines - total_height) / 2)
 	local col = math.floor((vim.o.columns - POPUP_WIDTH) / 2)
@@ -464,7 +516,8 @@ function M.show_popup(env_vars, filepath, env_files)
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
 	local status_buf = vim.api.nvim_create_buf(false, true)
-	local status_content = "[Space] Toggle  [a] Add  [d] Delete  [w] Save  [e] Switch File  [/] Search  [q] Quit"
+	local status_content =
+		"[Space] Toggle  [a] Add [c] Edit  [d] Delete  [w] Save  [e] Switch File  [/] Search  [q] Quit"
 	local padding = math.floor((POPUP_WIDTH - #status_content) / 2)
 	local status_text = string.rep(" ", padding) .. status_content
 	vim.api.nvim_buf_set_lines(status_buf, 0, -1, false, { status_text })
@@ -599,6 +652,8 @@ function M.show_popup(env_vars, filepath, env_files)
 	vim.keymap.set("n", "w", save_changes, { buffer = buf, nowait = true })
 
 	vim.keymap.set("n", "a", add_variable, { buffer = buf, nowait = true })
+
+	vim.keymap.set("n", "c", edit_variable, { buffer = buf, nowait = true })
 
 	vim.keymap.set("n", "d", delete_variable, { buffer = buf, nowait = true })
 
