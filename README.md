@@ -39,6 +39,7 @@ Run `:Envim` to open the interface.
 - `Space` - Toggle variable on/off (comment/uncomment)
 - `a` - Add new variable
 - `d` - Delete current variable
+- `c` - Edit current variable
 - `w` - Save changes to file
 - `e` - Switch to a different .env file
 - `/` or `Tab` - Switch to search
